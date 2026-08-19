@@ -2,14 +2,22 @@ package com.example.graphrag.config;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.retry.support.RetryTemplate;
+import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
 
 @Configuration
 public class OpenAiConfig {
+
+    @Bean
+    @ConditionalOnMissingBean
+    public RestClient.Builder restClientBuilder() {
+        return RestClient.builder();
+    }
 
     @Bean
     public RetryTemplate llmRetryTemplate() {

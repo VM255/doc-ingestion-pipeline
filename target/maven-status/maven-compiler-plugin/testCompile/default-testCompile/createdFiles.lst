@@ -1,6 +1,0 @@
-com/example/graphrag/mcp/McpKnowledgeToolsTest.class
-com/example/graphrag/controller/IngestionControllerTest.class
-com/example/graphrag/chunking/LlamaIndexChunkingTest.class
-com/example/graphrag/SpringAiGraphragMcpApplicationTests.class
-com/example/graphrag/service/KnowledgeGraphServiceTest.class
-com/example/graphrag/service/HybridRagServiceTest.class

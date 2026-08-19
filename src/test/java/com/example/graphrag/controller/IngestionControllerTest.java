@@ -6,10 +6,15 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.junit.jupiter.api.Test;
-import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.http.ResponseEntity;
+import org.springframework.core.io.buffer.DefaultDataBufferFactory;
+import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.http.HttpHeaders;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
 import java.io.ByteArrayOutputStream;
+import java.nio.file.Path;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -19,9 +24,32 @@ import static org.mockito.Mockito.*;
 class IngestionControllerTest {
 
     @Test
-    void testIngestPdfSuccess() throws Exception {
+    void testIngestTextReactive() {
         KnowledgeGraphService mockService = mock(KnowledgeGraphService.class);
-        when(mockService.ingestDocument(anyString(), anyString())).thenReturn(3);
+        when(mockService.ingestDocumentReactive(anyString(), anyString())).thenReturn(Mono.just(2));
+
+        IngestionController controller = new IngestionController(mockService);
+
+        Mono<Map<String, String>> requestMono = Mono.just(Map.of(
+            "source", "reactive-doc",
+            "content", "Reactive GraphRAG ingestion with Project Reactor and WebFlux."
+        ));
+
+        StepVerifier.create(controller.ingestText(requestMono))
+                .assertNext(response -> {
+                    assertEquals(200, response.getStatusCode().value());
+                    assertNotNull(response.getBody());
+                    assertEquals("SUCCESS", response.getBody().get("status"));
+                    assertEquals("reactive-doc", response.getBody().get("source"));
+                    assertEquals(2, response.getBody().get("chunksIngested"));
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void testIngestPdfSuccessReactive() throws Exception {
+        KnowledgeGraphService mockService = mock(KnowledgeGraphService.class);
+        when(mockService.ingestDocumentReactive(anyString(), anyString())).thenReturn(Mono.just(3));
 
         IngestionController controller = new IngestionController(mockService);
 
@@ -34,39 +62,64 @@ class IngestionControllerTest {
                 contentStream.beginText();
                 contentStream.setFont(PDType1Font.HELVETICA_BOLD, 12);
                 contentStream.newLineAtOffset(100, 700);
-                contentStream.showText("Spring AI GraphRAG MCP enterprise architecture document.");
+                contentStream.showText("Spring AI GraphRAG MCP reactive architecture document.");
                 contentStream.endText();
             }
             doc.save(out);
         }
 
-        MockMultipartFile file = new MockMultipartFile(
-            "file",
-            "sample.pdf",
-            "application/pdf",
-            out.toByteArray()
-        );
+        byte[] pdfBytes = out.toByteArray();
+        FilePart mockFilePart = new FilePart() {
+            @Override
+            public String filename() {
+                return "sample.pdf";
+            }
 
-        ResponseEntity<Map<String, Object>> response = controller.ingestPdf(file, "custom-pdf-source");
+            @Override
+            public Mono<Void> transferTo(Path dest) {
+                return Mono.empty();
+            }
 
-        assertEquals(200, response.getStatusCode().value());
-        assertNotNull(response.getBody());
-        assertEquals("SUCCESS", response.getBody().get("status"));
-        assertEquals("custom-pdf-source", response.getBody().get("source"));
-        assertEquals(3, response.getBody().get("chunksIngested"));
+            @Override
+            public String name() {
+                return "file";
+            }
 
-        verify(mockService, times(1)).ingestDocument(eq("custom-pdf-source"), contains("Spring AI GraphRAG"));
+            @Override
+            public HttpHeaders headers() {
+                return HttpHeaders.EMPTY;
+            }
+
+            @Override
+            public Flux<org.springframework.core.io.buffer.DataBuffer> content() {
+                return Flux.just(new DefaultDataBufferFactory().wrap(pdfBytes));
+            }
+        };
+
+        StepVerifier.create(controller.ingestPdf(Mono.just(mockFilePart), Mono.just("custom-pdf-source")))
+                .assertNext(response -> {
+                    assertEquals(200, response.getStatusCode().value());
+                    assertNotNull(response.getBody());
+                    assertEquals("SUCCESS", response.getBody().get("status"));
+                    assertEquals("custom-pdf-source", response.getBody().get("source"));
+                    assertEquals(3, response.getBody().get("chunksIngested"));
+                })
+                .verifyComplete();
     }
 
     @Test
-    void testIngestPdfInvalidExtension() {
+    void testIngestPdfInvalidExtensionReactive() {
         KnowledgeGraphService mockService = mock(KnowledgeGraphService.class);
         IngestionController controller = new IngestionController(mockService);
 
-        MockMultipartFile file = new MockMultipartFile("file", "test.txt", "text/plain", "Hello".getBytes());
-        ResponseEntity<Map<String, Object>> response = controller.ingestPdf(file, null);
+        FilePart mockFilePart = mock(FilePart.class);
+        when(mockFilePart.filename()).thenReturn("invalid.txt");
 
-        assertEquals(400, response.getStatusCode().value());
-        assertEquals("ERROR", response.getBody().get("status"));
+        StepVerifier.create(controller.ingestPdf(Mono.just(mockFilePart), Mono.empty()))
+                .assertNext(response -> {
+                    assertEquals(400, response.getStatusCode().value());
+                    assertEquals("ERROR", response.getBody().get("status"));
+                })
+                .verifyComplete();
     }
 }

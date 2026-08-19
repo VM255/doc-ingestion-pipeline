@@ -13,6 +13,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.List;
 import java.util.Map;
@@ -88,6 +91,11 @@ public class HybridRagService {
         return "Augmented GraphRAG Query Result for: " + userQuery;
     }
 
+    public Mono<String> queryReactive(String userQuery) {
+        return Mono.fromCallable(() -> query(userQuery))
+                .subscribeOn(Schedulers.boundedElastic());
+    }
+
     public String askVectorOnly(String query) {
         if (vectorStore == null) {
             return "Vector store unavailable.";
@@ -102,8 +110,17 @@ public class HybridRagService {
         return context;
     }
 
+    public Mono<String> askVectorOnlyReactive(String query) {
+        return Mono.fromCallable(() -> askVectorOnly(query))
+                .subscribeOn(Schedulers.boundedElastic());
+    }
+
     public String askGraphRag(String query) {
         return query(query);
+    }
+
+    public Mono<String> askGraphRagReactive(String query) {
+        return queryReactive(query);
     }
 
     public String askAgenticRag(String query) {
@@ -116,6 +133,15 @@ public class HybridRagService {
                     .content();
         }
         return query(query);
+    }
+
+    public Mono<String> askAgenticRagReactive(String query) {
+        return Mono.fromCallable(() -> askAgenticRag(query))
+                .subscribeOn(Schedulers.boundedElastic());
+    }
+
+    public Flux<String> streamGraphRag(String query) {
+        return askGraphRagReactive(query).flux();
     }
 
     public List<Entity> retrieveRelevantEntities(String query) {

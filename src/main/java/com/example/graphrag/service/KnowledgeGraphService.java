@@ -13,9 +13,11 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class KnowledgeGraphService {
@@ -55,8 +57,20 @@ public class KnowledgeGraphService {
         return neo4jGraphRepository.findEntityByName(name);
     }
 
+    public Mono<Entity> findEntityByNameReactive(String name) {
+        return Mono.fromCallable(() -> findEntityByName(name))
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMap(Mono::justOrEmpty);
+    }
+
     public List<Entity> findEntitiesByType(String type) {
         return neo4jGraphRepository.findEntitiesByType(type);
+    }
+
+    public Flux<Entity> findEntitiesByTypeReactive(String type) {
+        return Mono.fromCallable(() -> findEntitiesByType(type))
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMapMany(Flux::fromIterable);
     }
 
     public Relationship saveRelationship(Relationship relationship) {
@@ -65,6 +79,12 @@ public class KnowledgeGraphService {
 
     public List<Entity> findNeighbors(String entityId, int depth) {
         return neo4jGraphRepository.findNeighbors(entityId, depth);
+    }
+
+    public Flux<Entity> findNeighborsReactive(String entityId, int depth) {
+        return Mono.fromCallable(() -> findNeighbors(entityId, depth))
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMapMany(Flux::fromIterable);
     }
 
     public List<DocumentChunk> extractAndStoreGraph(DocumentChunk chunk) {
@@ -113,8 +133,13 @@ public class KnowledgeGraphService {
             extractAndStoreGraph(chunk);
         }
 
-        log.info("Successfully ingested document '{}' into Neo4j vector + graph ({}) chunks", sourceName, chunks.size());
+        log.info("Successfully ingested document '{}' into Neo4j vector + graph ({} chunks)", sourceName, chunks.size());
         return chunks.size();
+    }
+
+    public Mono<Integer> ingestDocumentReactive(String sourceName, String fullText) {
+        return Mono.fromCallable(() -> ingestDocument(sourceName, fullText))
+                .subscribeOn(Schedulers.boundedElastic());
     }
 
     public String retrieveHybridContext(String query, int vectorTopK, int graphDepth) {
@@ -153,6 +178,11 @@ public class KnowledgeGraphService {
         }
 
         return context.toString();
+    }
+
+    public Mono<String> retrieveHybridContextReactive(String query, int vectorTopK, int graphDepth) {
+        return Mono.fromCallable(() -> retrieveHybridContext(query, vectorTopK, graphDepth))
+                .subscribeOn(Schedulers.boundedElastic());
     }
 
     private List<DocumentChunk> defaultChunk(String sourceName, String text) {
