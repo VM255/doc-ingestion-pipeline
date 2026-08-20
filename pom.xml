@@ -13,9 +13,9 @@
     </parent>
     
     <groupId>com.example</groupId>
-    <artifactId>spring-ai-graphrag-mcp</artifactId>
+    <artifactId>doc-ingestion-pipeline</artifactId>
     <version>1.0.0</version>
-    <name>Spring AI GraphRAG + MCP</name>
+    <name>doc-ingestion-pipeline</name>
     
     <properties>
         <java.version>21</java.version>

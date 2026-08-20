@@ -28,7 +28,7 @@ public class QueryController {
         return Mono.just(Map.of(
             "status", "UP",
             "reactiveEngine", "Spring WebFlux / Project Reactor",
-            "service", "Spring AI GraphRAG MCP Hub",
+            "service", "doc-ingestion-pipeline",
             "version", "1.0.0",
             "mcpServer", "graphrag-knowledge-server",
             "port", 8088

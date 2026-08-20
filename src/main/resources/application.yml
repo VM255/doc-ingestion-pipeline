@@ -2,7 +2,7 @@ spring:
   main:
     allow-circular-references: true
   application:
-    name: graphrag-mcp-hub
+    name: doc-ingestion-pipeline
   profiles:
     active: dev
 
